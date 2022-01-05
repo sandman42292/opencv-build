@@ -22,7 +22,7 @@ jobs:
     - name: Fetch OpenCV
       id: fetch
       run: |
-          set -eux
+          set -ux
           git clone --quiet https://github.com/opencv/opencv.git "${{github.workspace}}/opencv"
           cd "${{github.workspace}}/opencv"
           export OPENCV_LATEST_VERSION="$(git tag | grep \^4.\*.\* | grep -v '-' | xargs -I{} python2 -c "if tuple('{}'.split('.')) >= ('4', '5', '5'): print '{}'" | sort | tail -n 1)"
