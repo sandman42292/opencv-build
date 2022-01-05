@@ -36,7 +36,7 @@ jobs:
           cd "${{github.workspace}}/opencv-${{matrix.opencv_version}}"
           export lib_type=$(python2 -c "print '${{matrix.lib_type}}'.lower()")
           export build_type=$(python2 -c "print '${{matrix.build_type}}'.lower()")
-          export name="opencv-${{matrix.opencv_version}}-mingw-${{lib_type}}-${{build_type}}"
+          export name="opencv-${{matrix.opencv_version}}-mingw-${lib_type}-${build_type}"
           export build_dir="${{github.workspace}}/${name}-build"
           cmake -B "$build_dir" -GNinja -DCMAKE_TOOLCHAIN_FILE="${{github.workspace}}/toolchain-mingw.cmake" \
               -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
