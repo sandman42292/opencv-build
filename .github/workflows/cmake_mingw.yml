@@ -47,7 +47,7 @@ jobs:
               -DBUILD_opencv_apps=OFF \
           | tee cmake_log.txt
           export release_body_raw="$(awk '/General configuration for OpenCV/,/-----/' cmake_log.txt)"
-          export RELEASE_BODY="${release_body_raw//$'\n'/\\n}"
+          export RELEASE_BODY="${release_body_raw//$'\n'/'%0A'}"
           echo "::set-output name=RELEASE_BODY::$RELEASE_BODY"
           #cmake --build "$build_dir"
           #cmake --install "$build_dir" --prefix "${{github.workspace}}/${name}"
@@ -72,6 +72,10 @@ jobs:
         release_name: OpenCV-${{matrix.opencv_version}}-MinGW-${{matrix.lib_type}} (${{matrix.build_type}})
         body: |
             sha256 checksum: ${{steps.build.outputs.CHECKSUM}}
+
+            ```
+            ${{steps.build.outputs.RELEASE_BODY}}
+            ```
 
             ${{steps.build.outputs.RELEASE_BODY}}
         draft: false
