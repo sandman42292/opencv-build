@@ -34,10 +34,10 @@ jobs:
       run: |
           set -eux
           cd "${{github.workspace}}/opencv-${{matrix.opencv_version}}"
-          lib_type=$(python2 -c "print '${{matrix.lib_type}}'.lower()")
-          build_type=$(python2 -c "print '${{matrix.build_type}}'.lower()")
-          name="opencv-${{matrix.opencv_version}}-mingw-${{lib_type}}-${{build_type}}"
-          build_dir="${{github.workspace}}/${name}-build"
+          export lib_type=$(python2 -c "print '${{matrix.lib_type}}'.lower()")
+          export build_type=$(python2 -c "print '${{matrix.build_type}}'.lower()")
+          export name="opencv-${{matrix.opencv_version}}-mingw-${{lib_type}}-${{build_type}}"
+          export build_dir="${{github.workspace}}/${name}-build"
           cmake -B "$build_dir" -GNinja -DCMAKE_TOOLCHAIN_FILE="${{github.workspace}}/toolchain-mingw.cmake" \
               -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
               -DBUILD_SHARED_LIBS=$(python2 -c "print 'ON' if '${{matrix.lib_type}}' == 'Dynamic' else 'OFF'") \
@@ -46,17 +46,17 @@ jobs:
               -DBUILD_EXAMPLES=OFF \
               -DBUILD_opencv_apps=OFF \
           | tee cmake_log.txt
-          RELEASE_BODY="$(awk '/General configuration for OpenCV/,/-----/' cmake_log.txt)"
+          export RELEASE_BODY="$(awk '/General configuration for OpenCV/,/-----/' cmake_log.txt)"
           echo "::set-output name=RELEASE_BODY::$RELEASE_BODY"
           cmake --build "$build_dir"
           cmake --install "$build_dir" --prefix "${{github.workspace}}/${name}"
           cd ${{github.workspace}}
-          ZIP_FILE_NAME="${name}.zip"
+          export ZIP_FILE_NAME="${name}.zip"
           echo "::set-output name=ZIP_FILE_NAME::$ZIP_FILE_NAME"
           zip -r "${ZIP_FILE_NAME}" "${name}"
-          CHECKSUM=$(sha256sum "${ZIP_FILE_NAME}")
+          export CHECKSUM=$(sha256sum "${ZIP_FILE_NAME}")
           echo "::set-output CHECKSUM::$CHECKSUM"
-          ZIP_FILE_PATH="$(realpath "${ZIP_FILE_NAME}")"
+          export ZIP_FILE_PATH="$(realpath "${ZIP_FILE_NAME}")"
           echo "::set-output ZIP_FILE_PATH::$ZIP_FILE_PATH"
 
     - name: Create Release
