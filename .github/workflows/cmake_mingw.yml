@@ -47,17 +47,17 @@ jobs:
               -DBUILD_opencv_apps=OFF \
           | tee cmake_log.txt
           RELEASE_BODY="$(awk '/General configuration for OpenCV/,/-----/' cmake_log.txt)"
-          echo "::set-env RELEASE_BODY=$RELEASE_BODY"
+          echo "::set-output name=RELEASE_BODY::$RELEASE_BODY"
           cmake --build "$build_dir"
           cmake --install "$build_dir" --prefix "${{github.workspace}}/${name}"
           cd ${{github.workspace}}
           ZIP_FILE_NAME="${name}.zip"
-          echo "::set-env ZIP_FILE_NAME=$ZIP_FILE_NAME"
+          echo "::set-output name=ZIP_FILE_NAME::$ZIP_FILE_NAME"
           zip -r "${ZIP_FILE_NAME}" "${name}"
           CHECKSUM=$(sha256sum "${ZIP_FILE_NAME}")
-          echo "::set-env CHECKSUM=$CHECKSUM"
+          echo "::set-output CHECKSUM::$CHECKSUM"
           ZIP_FILE_PATH="$(realpath "${ZIP_FILE_NAME}")"
-          echo "::set-env ZIP_FILE_PATH=$ZIP_FILE_PATH"
+          echo "::set-output ZIP_FILE_PATH::$ZIP_FILE_PATH"
 
     - name: Create Release
       id: create_release
