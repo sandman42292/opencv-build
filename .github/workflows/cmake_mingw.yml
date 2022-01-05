@@ -11,7 +11,7 @@ jobs:
     strategy:
       matrix:
         build_type: ["Release", "RelWithDebInfo"]
-        build_shared_libs: ["ON", "OFF"]
+        lib_type: ["Static", "Dynamic"]
         opencv_version: ["4.5.5"]
 
     steps:
@@ -30,17 +30,20 @@ jobs:
           unzip -q ${{matrix.opencv_version}}.zip -d ${{github.workspace}}
 
     - name: Build
+      id: build
       run: |
           cd ${{github.workspace}}/opencv-${{matrix.opencv_version}}
           cmake -B build -GNinja -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/toolchain-mingw.cmake \
               -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
-              -DBUILD_SHARED_LIBS=OFF \
+              -DBUILD_SHARED_LIBS=$(python2 -c "print 'ON' if ${{matrix.lib_type}} == 'Dynamic' else 'OFF'") \
               -DBUILD_TESTS=OFF \
               -DBUILD_PERF_TESTS=OFF \
               -DBUILD_EXAMPLES=OFF \
               -DBUILD_opencv_apps=OFF\
-              ;
+          | tee cmake_log.txt
+          RELEASE_BODY="$(awk '/General configuration for OpenCV/,/-----/' cmake_log.txt)"
           build_dir=${{github.workspace}}/opencv-${{matrix.opencv_version}}-build
+          mkdir $build_dir
           cmake --build $build_dir
           cmake --install $build_dir --prefix ${{github.workspace}}/opencv-mingw-${{matrix.opencv_version}}
           cd ${{github.workspace}}
@@ -51,10 +54,11 @@ jobs:
       uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+        RELEASE_NAME: OpenCV-${{matrix.opencv_version}}-MinGW-${{matrix.lib_type}} (${{matrix.build_type}})
       with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
-        body: OpenCV-${{matrix.opencv_version}}-MinGW (${{matrix.build_type}})
+        tag_name: OpenCV-${{matrix.opencv_version}}-MinGW-${{matrix.lib_type}} (${{matrix.build_type}})
+        release_name: ${{env.RELEASE_NAME}}
+        body: ${{steps.build.outputs.RELEASE_BODY}}
         draft: false
         prerelease: false
 
