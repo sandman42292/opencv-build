@@ -48,8 +48,10 @@ jobs:
           | tee cmake_log.txt
           export RELEASE_BODY="$(awk '/General configuration for OpenCV/,/-----/' cmake_log.txt)"
           echo "::set-output name=RELEASE_BODY::$RELEASE_BODY"
-          cmake --build "$build_dir"
-          cmake --install "$build_dir" --prefix "${{github.workspace}}/${name}"
+          #cmake --build "$build_dir"
+          #cmake --install "$build_dir" --prefix "${{github.workspace}}/${name}"
+          mkdir "${{github.workspace}}/${name}"
+          touch "${{github.workspace}}/${name}/hoge"
           cd ${{github.workspace}}
           export ZIP_FILE_NAME="${name}.zip"
           echo "::set-output name=ZIP_FILE_NAME::$ZIP_FILE_NAME"
