@@ -73,9 +73,7 @@ jobs:
         body: |
             sha256 checksum: ${{steps.build.outputs.CHECKSUM}}
 
-            ```
             ${{steps.build.outputs.RELEASE_BODY}}
-            ```
         draft: false
         prerelease: false
 
