@@ -55,9 +55,9 @@ jobs:
           echo "::set-output name=ZIP_FILE_NAME::$ZIP_FILE_NAME"
           zip -r "${ZIP_FILE_NAME}" "${name}"
           export CHECKSUM=$(sha256sum "${ZIP_FILE_NAME}")
-          echo "::set-output CHECKSUM::$CHECKSUM"
+          echo "::set-output name=CHECKSUM::$CHECKSUM"
           export ZIP_FILE_PATH="$(realpath "${ZIP_FILE_NAME}")"
-          echo "::set-output ZIP_FILE_PATH::$ZIP_FILE_PATH"
+          echo "::set-output name=ZIP_FILE_PATH::$ZIP_FILE_PATH"
 
     - name: Create Release
       id: create_release
