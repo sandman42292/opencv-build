@@ -26,32 +26,38 @@ jobs:
 
     - name: Setup OpenCV
       run: |
-          wget https://github.com/opencv/opencv/archive/refs/tags/${{matrix.opencv_version}}.zip --quiet
-          unzip -q ${{matrix.opencv_version}}.zip -d ${{github.workspace}}
+          wget "https://github.com/opencv/opencv/archive/refs/tags/${{matrix.opencv_version}}.zip" --quiet
+          unzip -q "${{matrix.opencv_version}}.zip" -d ${{github.workspace}}
 
     - name: Build
       id: build
       run: |
           set -eux
-          cd ${{github.workspace}}/opencv-${{matrix.opencv_version}}
-          name=opencv-${{matrix.opencv_version}}-mingw-${{matrix.lib_type}}-${{matrix.build_type}}
+          cd "${{github.workspace}}/opencv-${{matrix.opencv_version}}"
+          lib_type=$(python2 -c "print '${{matrix.lib_type}}'.lower()")
+          build_type=$(python2 -c "print '${{matrix.build_type}}'.lower()")
+          name="opencv-${{matrix.opencv_version}}-mingw-${{lib_type}}-${{build_type}}"
           build_dir="${{github.workspace}}/${name}-build"
-          cmake -B "$build_dir" -GNinja -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/toolchain-mingw.cmake \
+          cmake -B "$build_dir" -GNinja -DCMAKE_TOOLCHAIN_FILE="${{github.workspace}}/toolchain-mingw.cmake" \
               -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
               -DBUILD_SHARED_LIBS=$(python2 -c "print 'ON' if '${{matrix.lib_type}}' == 'Dynamic' else 'OFF'") \
               -DBUILD_TESTS=OFF \
               -DBUILD_PERF_TESTS=OFF \
               -DBUILD_EXAMPLES=OFF \
-              -DBUILD_opencv_apps=OFF\
+              -DBUILD_opencv_apps=OFF \
           | tee cmake_log.txt
           RELEASE_BODY="$(awk '/General configuration for OpenCV/,/-----/' cmake_log.txt)"
+          echo "::set-env RELEASE_BODY=$RELEASE_BODY"
           cmake --build "$build_dir"
           cmake --install "$build_dir" --prefix "${{github.workspace}}/${name}"
           cd ${{github.workspace}}
           ZIP_FILE_NAME="${name}.zip"
+          echo "::set-env ZIP_FILE_NAME=$ZIP_FILE_NAME"
           zip -r "${ZIP_FILE_NAME}" "${name}"
           CHECKSUM=$(sha256sum "${ZIP_FILE_NAME}")
+          echo "::set-env CHECKSUM=$CHECKSUM"
           ZIP_FILE_PATH="$(realpath "${ZIP_FILE_NAME}")"
+          echo "::set-env ZIP_FILE_PATH=$ZIP_FILE_PATH"
 
     - name: Create Release
       id: create_release
