@@ -34,7 +34,7 @@ jobs:
       run: |
           set -eux
           cd ${{github.workspace}}/opencv-${{matrix.opencv_version}}
-          build_dir="${{github.workspace}}/opencv-${{matrix.opencv_version}}-build"
+          build_dir="${{github.workspace}}/opencv-${{matrix.opencv_version}}-${{matrix.build_type}}-${{matrix.lib_type}}-build"
           cmake -B "$build_dir" -GNinja -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/toolchain-mingw.cmake \
               -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
               -DBUILD_SHARED_LIBS=$(python2 -c "print 'ON' if '${{matrix.lib_type}}' == 'Dynamic' else 'OFF'") \
@@ -44,7 +44,6 @@ jobs:
               -DBUILD_opencv_apps=OFF\
           | tee cmake_log.txt
           RELEASE_BODY="$(awk '/General configuration for OpenCV/,/-----/' cmake_log.txt)"
-          mkdir "$build_dir"
           cmake --build "$build_dir"
           cmake --install "$build_dir" --prefix ${{github.workspace}}/opencv-mingw-${{matrix.opencv_version}}
           cd ${{github.workspace}}
@@ -57,7 +56,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
         RELEASE_NAME: OpenCV-${{matrix.opencv_version}}-MinGW-${{matrix.lib_type}} (${{matrix.build_type}})
       with:
-        tag_name: OpenCV-${{matrix.opencv_version}}-MinGW-${{matrix.lib_type}} (${{matrix.build_type}})
+        tag_name: ${{ github.ref }}
         release_name: ${{env.RELEASE_NAME}}
         body: ${{steps.build.outputs.RELEASE_BODY}}
         draft: false
