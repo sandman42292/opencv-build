@@ -15,8 +15,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-      with:
-          submodules: recursive
+
+    - name: Unshallow
+      run: git fetch --prune --unshallow --tags
 
     - name: Fetch OpenCV
       id: fetch
@@ -31,7 +32,7 @@ jobs:
           export build_type=$(python2 -c "print '${{matrix.build_type}}'.lower()")
           export NAME="opencv-${OPENCV_LATEST_VERSION}-mingw-${lib_type}-${build_type}"
           echo "::set-output name=NAME::$NAME"
-          (git tag | grep "$NAME") && exit 1
+          test -n "$(git tag | grep "$NAME")" && exit 1
 
     - name: Setup environment
       run: |
