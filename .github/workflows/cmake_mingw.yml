@@ -10,9 +10,9 @@ jobs:
 
     strategy:
       matrix:
-        build_type: ["Release", "RelWithDebInfo"]
-        lib_type: ["Static", "Dynamic"]
         opencv_version: ["4.5.5"]
+        lib_type: ["Static", "Dynamic"]
+        build_type: ["Release", "RelWithDebInfo"]
 
     steps:
     - uses: actions/checkout@v2
@@ -34,7 +34,8 @@ jobs:
       run: |
           set -eux
           cd ${{github.workspace}}/opencv-${{matrix.opencv_version}}
-          build_dir="${{github.workspace}}/opencv-${{matrix.opencv_version}}-${{matrix.build_type}}-${{matrix.lib_type}}-build"
+          name=opencv-${{matrix.opencv_version}}-mingw-${{matrix.lib_type}}-${{matrix.build_type}}
+          build_dir="${{github.workspace}}/${name}-build"
           cmake -B "$build_dir" -GNinja -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/toolchain-mingw.cmake \
               -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
               -DBUILD_SHARED_LIBS=$(python2 -c "print 'ON' if '${{matrix.lib_type}}' == 'Dynamic' else 'OFF'") \
@@ -45,20 +46,25 @@ jobs:
           | tee cmake_log.txt
           RELEASE_BODY="$(awk '/General configuration for OpenCV/,/-----/' cmake_log.txt)"
           cmake --build "$build_dir"
-          cmake --install "$build_dir" --prefix ${{github.workspace}}/opencv-mingw-${{matrix.opencv_version}}
+          cmake --install "$build_dir" --prefix ${{github.workspace}}/${name}
           cd ${{github.workspace}}
-          zip -r opencv-mingw-${{matrix.opencv_version}}.zip opencv-mingw-${{matrix.opencv_version}}
+          zip -r ${name}.zip ${name}
+          CHECKSUM=$(sha256sum ${name}.zip)
 
     - name: Create Release
       id: create_release
       uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
-        RELEASE_NAME: OpenCV-${{matrix.opencv_version}}-MinGW-${{matrix.lib_type}} (${{matrix.build_type}})
       with:
-        tag_name: ${{ github.ref }}
-        release_name: ${{env.RELEASE_NAME}}
-        body: ${{steps.build.outputs.RELEASE_BODY}}
+        tag_name: checksum_${{steps.build.outputs.CHECKSUM}}
+        release_name: OpenCV-${{matrix.opencv_version}}-MinGW-${{matrix.lib_type}} (${{matrix.build_type}})
+        body: |
+            sha256 checksum: ${{steps.build.outputs.CHECKSUM}}
+
+            ```
+            ${{steps.build.outputs.RELEASE_BODY}}
+            ```
         draft: false
         prerelease: false
 
