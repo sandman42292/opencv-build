@@ -32,6 +32,7 @@ jobs:
           export build_type=$(python2 -c "print '${{matrix.build_type}}'.lower()")
           export NAME="opencv-${OPENCV_LATEST_VERSION}-mingw-${lib_type}-${build_type}"
           echo "::set-output name=NAME::$NAME"
+          git tag
           test -n "$(git tag | grep "$NAME")" && exit 1
 
     - name: Setup environment
