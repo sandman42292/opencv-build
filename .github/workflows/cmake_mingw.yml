@@ -32,8 +32,10 @@ jobs:
     - name: Build
       id: build
       run: |
+          set -eux
           cd ${{github.workspace}}/opencv-${{matrix.opencv_version}}
-          cmake -B build -GNinja -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/toolchain-mingw.cmake \
+          build_dir="${{github.workspace}}/opencv-${{matrix.opencv_version}}-build"
+          cmake -B "$build_dir" -GNinja -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/toolchain-mingw.cmake \
               -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
               -DBUILD_SHARED_LIBS=$(python2 -c "print 'ON' if '${{matrix.lib_type}}' == 'Dynamic' else 'OFF'") \
               -DBUILD_TESTS=OFF \
@@ -42,10 +44,9 @@ jobs:
               -DBUILD_opencv_apps=OFF\
           | tee cmake_log.txt
           RELEASE_BODY="$(awk '/General configuration for OpenCV/,/-----/' cmake_log.txt)"
-          build_dir=${{github.workspace}}/opencv-${{matrix.opencv_version}}-build
-          mkdir $build_dir
-          cmake --build $build_dir
-          cmake --install $build_dir --prefix ${{github.workspace}}/opencv-mingw-${{matrix.opencv_version}}
+          mkdir "$build_dir"
+          cmake --build "$build_dir"
+          cmake --install "$build_dir" --prefix ${{github.workspace}}/opencv-mingw-${{matrix.opencv_version}}
           cd ${{github.workspace}}
           zip -r opencv-mingw-${{matrix.opencv_version}}.zip opencv-mingw-${{matrix.opencv_version}}
 
