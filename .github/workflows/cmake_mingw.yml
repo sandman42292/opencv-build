@@ -35,7 +35,7 @@ jobs:
           cd ${{github.workspace}}/opencv-${{matrix.opencv_version}}
           cmake -B build -GNinja -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/toolchain-mingw.cmake \
               -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
-              -DBUILD_SHARED_LIBS=$(python2 -c "print 'ON' if ${{matrix.lib_type}} == 'Dynamic' else 'OFF'") \
+              -DBUILD_SHARED_LIBS=$(python2 -c "print 'ON' if '${{matrix.lib_type}}' == 'Dynamic' else 'OFF'") \
               -DBUILD_TESTS=OFF \
               -DBUILD_PERF_TESTS=OFF \
               -DBUILD_EXAMPLES=OFF \
