@@ -2,38 +2,73 @@ name: CMake
 
 on:
   push:
-  pull_request:
-
-env:
-  BUILD_TYPE: Release
 
 jobs:
   build_mingw:
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        lib_type: ["Static", "Dynamic"]
+        build_type: ["Release", "RelWithDebInfo"]
+
     steps:
     - uses: actions/checkout@v2
-      with:
-          submodules: recursive
+
+    - name: Unshallow
+      run: git fetch --prune --unshallow --tags
+
+    - name: Fetch OpenCV
+      id: fetch
+      run: |
+          set -ux
+          git clone --quiet https://github.com/opencv/opencv.git "${{github.workspace}}/opencv"
+          cd "${{github.workspace}}/opencv"
+          export OPENCV_LATEST_VERSION="$(git tag | grep \^4.\*.\* | grep -v '-' | xargs -I{} python2 -c "if tuple('{}'.split('.')) >= ('4', '5', '5'): print '{}'" | sort | tail -n 1)"
+          echo "::set-output name=OPENCV_LATEST_VERSION::$OPENCV_LATEST_VERSION"
+          cd "${{github.workspace}}"
+          export lib_type=$(python2 -c "print '${{matrix.lib_type}}'.lower()")
+          export build_type=$(python2 -c "print '${{matrix.build_type}}'.lower()")
+          export NAME="opencv-${OPENCV_LATEST_VERSION}-mingw-${lib_type}-${build_type}"
+          echo "::set-output name=NAME::$NAME"
+          git tag
+          test -n "$(git tag | grep "$NAME")" && exit 1
+          exit 0
 
     - name: Setup environment
       run: |
           sudo apt-get -yq update
           sudo apt-get -yq install cmake ninja-build mingw-w64
 
-    - name: Setup OpenCV
-      run: |
-          wget https://github.com/opencv/opencv/archive/refs/tags/4.5.4.zip
-          unzip 4.5.4.zip -d ${{github.workspace}}
-
     - name: Build
+      id: build
       run: |
-          cd ${{github.workspace}}/opencv-4.5.4
-          ls ${{github.workspace}}/toolchain-mingw.cmake
-          cmake -B build -GNinja -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/toolchain-mingw.cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DBUILD_SHARED_LIBS=OFF
-          cmake --build build
-          cmake --install build --prefix ${{github.workspace}}/opencv-mingw-4.5.4
-          zip -r ${{github.workspace}}/opencv-mingw-4.5.4.zip ${{github.workspace}}/opencv-mingw-4.5.4
+          set -eux
+          cd "${{github.workspace}}/opencv"
+          git checkout ${{steps.fetch.outputs.OPENCV_LATEST_VERSION}}
+          export name=${{steps.fetch.outputs.NAME}}
+          export build_dir="${{github.workspace}}/${name}-build"
+          cmake -B "$build_dir" -GNinja -DCMAKE_TOOLCHAIN_FILE="${{github.workspace}}/toolchain-mingw.cmake" \
+              -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
+              -DBUILD_SHARED_LIBS=$(python2 -c "print 'ON' if '${{matrix.lib_type}}' == 'Dynamic' else 'OFF'") \
+              -DBUILD_TESTS=OFF \
+              -DBUILD_PERF_TESTS=OFF \
+              -DBUILD_EXAMPLES=OFF \
+              -DBUILD_opencv_apps=OFF \
+          | tee cmake_log.txt
+          export release_body_raw="$(awk '/General configuration for OpenCV/,/-----/' cmake_log.txt)"
+          export RELEASE_BODY="${release_body_raw//$'\n'/'%0A'}"
+          echo "::set-output name=RELEASE_BODY::$RELEASE_BODY"
+          cmake --build "${build_dir}"
+          cmake --install "${build_dir}" --prefix "${{github.workspace}}/${name}"
+          cd ${{github.workspace}}
+          export ZIP_FILE_NAME="${name}.zip"
+          echo "::set-output name=ZIP_FILE_NAME::$ZIP_FILE_NAME"
+          zip -r "${ZIP_FILE_NAME}" "${name}"
+          export CHECKSUM=$(sha256sum "${ZIP_FILE_NAME}" | cut -d ' ' -f 1)
+          echo "::set-output name=CHECKSUM::$CHECKSUM"
+          export ZIP_FILE_PATH="$(realpath "${ZIP_FILE_NAME}")"
+          echo "::set-output name=ZIP_FILE_PATH::$ZIP_FILE_PATH"
 
     - name: Create Release
       id: create_release
@@ -41,22 +76,24 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
       with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
+        tag_name: ${{steps.fetch.outputs.NAME}}
+        release_name: OpenCV-${{steps.fetch.outputs.OPENCV_LATEST_VERSION}}-MinGW-${{matrix.lib_type}} (${{matrix.build_type}})
         body: |
-          Changes in this Release
-          - First Change
-          - Second Change
+            sha256 checksum: ${{steps.build.outputs.CHECKSUM}}
+
+            ```
+            ${{steps.build.outputs.RELEASE_BODY}}
+            ```
         draft: false
         prerelease: false
 
     - name: Upload Release Asset
-      id: upload-release-asset 
+      id: upload-release-asset
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
-        asset_path: ${{github.workspace}}/opencv-mingw-4.5.4.zip
-        asset_name: opencv-mingw-4.5.4.zip
+        asset_path: ${{steps.build.outputs.ZIP_FILE_PATH}}
+        asset_name: ${{steps.build.outputs.ZIP_FILE_NAME}}
         asset_content_type: application/zip
