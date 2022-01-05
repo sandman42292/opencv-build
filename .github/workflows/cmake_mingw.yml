@@ -46,7 +46,8 @@ jobs:
               -DBUILD_EXAMPLES=OFF \
               -DBUILD_opencv_apps=OFF \
           | tee cmake_log.txt
-          export RELEASE_BODY="$(awk '/General configuration for OpenCV/,/-----/' cmake_log.txt)"
+          export release_body_raw="$(awk '/General configuration for OpenCV/,/-----/' cmake_log.txt)"
+          export RELEASE_BODY="${release_body_raw//$'\n'/\\n}"
           echo "::set-output name=RELEASE_BODY::$RELEASE_BODY"
           #cmake --build "$build_dir"
           #cmake --install "$build_dir" --prefix "${{github.workspace}}/${name}"
@@ -56,7 +57,7 @@ jobs:
           export ZIP_FILE_NAME="${name}.zip"
           echo "::set-output name=ZIP_FILE_NAME::$ZIP_FILE_NAME"
           zip -r "${ZIP_FILE_NAME}" "${name}"
-          export CHECKSUM=$(sha256sum "${ZIP_FILE_NAME}")
+          export CHECKSUM=$(sha256sum "${ZIP_FILE_NAME}" | cut -d ' ' -f 1)
           echo "::set-output name=CHECKSUM::$CHECKSUM"
           export ZIP_FILE_PATH="$(realpath "${ZIP_FILE_NAME}")"
           echo "::set-output name=ZIP_FILE_PATH::$ZIP_FILE_PATH"
