@@ -46,7 +46,7 @@ jobs:
           sudo apt-get -yq install cmake ninja-build
 
     - name: Setup environment for MinGW
-      if: ${{matrix.platform_type}} == "MinGW"
+      if: ${{matrix.platform_type == 'MinGW'}}
       run: |
           sudo apt-get -yq install mingw-w64
 
