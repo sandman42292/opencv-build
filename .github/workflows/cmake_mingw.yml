@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         lib_type: ["Static", "Dynamic"]
-        build_type: ["Release", "RelWithDebInfo"]
+        build_type: ["Debug", "Release", "RelWithDebInfo"]
 
     steps:
     - uses: actions/checkout@v2
