@@ -6,12 +6,13 @@ on:
     - cron:  '0 0 * * *'
 
 jobs:
-  build_mingw:
+  build:
     runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
       matrix:
+        platform_type: ["Linux", "MinGW"]
         lib_type: ["Static", "Dynamic"]
         build_type: ["Debug", "Release", "RelWithDebInfo"]
 
@@ -30,9 +31,10 @@ jobs:
           export OPENCV_LATEST_VERSION="$(git tag | grep \^4.\*.\* | grep -v '-' | xargs -I{} python2 -c "if tuple('{}'.split('.')) >= ('4', '5', '5'): print '{}'" | sort | tail -n 1)"
           echo "::set-output name=OPENCV_LATEST_VERSION::$OPENCV_LATEST_VERSION"
           cd "${{github.workspace}}"
+          export platform_type=$(python2 -c "print '${{matrix.platform_type}}'.lower()")
           export lib_type=$(python2 -c "print '${{matrix.lib_type}}'.lower()")
           export build_type=$(python2 -c "print '${{matrix.build_type}}'.lower()")
-          export NAME="opencv-${OPENCV_LATEST_VERSION}-mingw-${lib_type}-${build_type}"
+          export NAME="opencv-${OPENCV_LATEST_VERSION}-${platform_type}-${lib_type}-${build_type}"
           echo "::set-output name=NAME::$NAME"
           git tag
           test -n "$(git tag | grep "$NAME")" && exit 1
@@ -41,7 +43,12 @@ jobs:
     - name: Setup environment
       run: |
           sudo apt-get -yq update
-          sudo apt-get -yq install cmake ninja-build mingw-w64
+          sudo apt-get -yq install cmake ninja-build
+
+    - name: Setup environment for MinGW
+      if: ${{matrix.platform_type}} == "MinGW"
+      run: |
+          sudo apt-get -yq install mingw-w64
 
     - name: Build
       id: build
@@ -51,7 +58,8 @@ jobs:
           git checkout ${{steps.fetch.outputs.OPENCV_LATEST_VERSION}}
           export name=${{steps.fetch.outputs.NAME}}
           export build_dir="${{github.workspace}}/${name}-build"
-          cmake -B "$build_dir" -GNinja -DCMAKE_TOOLCHAIN_FILE="${{github.workspace}}/toolchain-mingw.cmake" \
+          cmake -B "$build_dir" -GNinja \
+              $(python2 -c 'print "-DCMAKE_TOOLCHAIN_FILE=\"${{github.workspace}}/toolchain-mingw.cmake\"" if "${{matrix.platform_type}}" == "MinGW" else ""') \
               -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
               -DBUILD_SHARED_LIBS=$(python2 -c "print 'ON' if '${{matrix.lib_type}}' == 'Dynamic' else 'OFF'") \
               -DBUILD_TESTS=OFF \
@@ -80,7 +88,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
       with:
         tag_name: ${{steps.fetch.outputs.NAME}}
-        release_name: OpenCV-${{steps.fetch.outputs.OPENCV_LATEST_VERSION}}-MinGW-${{matrix.lib_type}} (${{matrix.build_type}})
+        release_name: OpenCV-${{steps.fetch.outputs.OPENCV_LATEST_VERSION}}-${{matrix.platform_type}}-${{matrix.lib_type}} (${{matrix.build_type}})
         body: |
             sha256 checksum: ${{steps.build.outputs.CHECKSUM}}
 
